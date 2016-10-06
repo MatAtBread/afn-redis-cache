@@ -1,0 +1,31 @@
+{
+  "name": "afn-redis-cache",
+  "version": "1.0.0",
+  "description": "A shared network cache for https://github.com/MatAtBread/afn to speed up clustered API servers",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "scripts": {
+      "install": "nodentjs --dest=dist/ --noruntime *.js"
+    },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/matAtWork/afn-redis-cache.git"
+  },
+  "keywords": [
+    "async",
+    "map",
+    "cache",
+    "redis"
+  ],
+  "author": "https://github.com/matAtBread",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/matAtWork/afn-redis-cache/issues"
+  },
+  "homepage": "https://github.com/matAtWork/afn-redis-cache#readme",
+  "dependencies": {
+    "nodent": ">=2.6.11"
+  }
+}
