@@ -80,7 +80,7 @@ module.exports = function(config){
                         if (err)
                             async return [] ;
                         try {
-                            async return JSON.parse(reply) ;
+                            async return reply ;
                         } catch (ex) {
                             async return [] ;
                         }
