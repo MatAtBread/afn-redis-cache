@@ -1,6 +1,6 @@
 {
   "name": "afn-redis-cache",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A shared network cache for https://github.com/MatAtBread/afn to speed up clustered API servers",
   "main": "index.js",
   "scripts": {
