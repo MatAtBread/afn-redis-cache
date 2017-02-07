@@ -67,43 +67,43 @@ module.exports = function(config){
             var self ;
             return self = {
                 get:async function(key) {
-                    var retries = 0, delay = 25, total = 0 ;
-                    (function waiting(){
-                        client.get(cacheID+key,function(err,reply){
-                            if (err) {
-//config.log('afn-redis error   '+cacheID+key,err) ;                               
-                                async return undefined ;
-                            }
+                    var delay = 25, total = 0 ;
+                    function waiting(){
+                        client.get(cacheID+key,handleRedisResponse) ;
+                    }
 
-                            if (reply===null) {
-//config.log('afn-redis miss    '+cacheID+key) ;                               
-                                async return null ;
-                            }
-                            try {
-                                if (reply === inProgress) {
-//config.log('afn-redis wait    '+cacheID+key) ;                               
-                                    // We're still in progress
-                                    retries += 1 ;
-                                    delay += retries ;
-                                    total += delay ;
-                                    
-                                    if (total > config.asyncTimeOut * 1000) {
-                                        // Timed out
-//config.log('afn-redis timeout '+cacheID+key) ;                               
-                                        async return undefined ;
-                                    } else {
-                                        setTimeout(waiting, delay) ;
-                                    }
+                    function handleRedisResponse(err,reply){
+                        if (err) {
+                            config.log("error",key,err) ;
+                            async return undefined ;
+                        }
+                        if (reply===null) {
+                            config.log("miss",key) ;
+                            async return null ;
+                        }
+                        
+                        try {
+                            if (reply === inProgress) {
+                                // We're still in progress
+                                delay = (delay * 1.3) |0 ;
+                                total += delay ;
+                                
+                                if (total > config.asyncTimeOut * 1000) {
+                                    config.log("timeout",key) ;
+                                    async return undefined ;
                                 } else {
-//config.log('afn-redis hit     '+cacheID+key) ;                               
-                                    async return JSON.parse(reply) ;
+                                    setTimeout(waiting, delay) ;
                                 }
-                            } catch (ex) {
-//config.log('afn-redis except   '+cacheID+key) ;                               
-                                async return undefined ;
+                            } else {
+                                config.log("reply",key) ;
+                                async return JSON.parse(reply) ;
                             }
-                        }) ;
-                    })() ;
+                        } catch (ex) {
+                            config.log("exception",key,ex) ;
+                            async return undefined ;
+                        }
+                    }
+                    waiting() ;
                 },
                 set:async function(key,data,ttl) {
                     // Are we being asked to cache an unresolved promise with no data

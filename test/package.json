@@ -1,0 +1,14 @@
+{
+  "name": "afn-redis-cache-test",
+  "version": "1.0.0",
+  "description": "Test for afn-redis-cache",
+  "main": "index.js",
+  "scripts": {
+    "test": "node ."
+  },
+  "author": "https://github.com/MatAtBread",
+  "license": "MIT",
+  "dependencies": {
+    "colors": "^1.1.2"
+  }
+}

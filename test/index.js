@@ -1,0 +1,2 @@
+require('nodent')() ;
+require('./test') ;
