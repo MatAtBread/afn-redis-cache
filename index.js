@@ -25,7 +25,7 @@ module.exports = function(config){
     
     // By default, fail connections quickly so caches fall back to local memory
     if (!('enable_offline_queue' in redisOpts)) {
-        redisOpts.enable_offline_queue = false ;
+        redisOpts.enable_offline_queue = true ;
         redisOpts.connect_timeout = 1000 ;
     }
     // On failure, fail the command(s) instantly and try to re-establish a connection in 10 seconds
