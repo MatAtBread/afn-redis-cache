@@ -69,7 +69,12 @@ module.exports = function(config){
                 get:async function(key) {
                     var delay = 25, total = 0 ;
                     function waiting(){
-                        client.get(cacheID+key,handleRedisResponse) ;
+                        // The script is an "atomic" get-test-set that returns the current value for a key,
+                        // of if it doesn't exist sets it to '@promise' and returns null (so the client in this
+                        // case will think it missed and populate it). 
+                        var script = /* params: keyName=wait-time (in seconds) */
+                        "local v = redis.call('GET',KEYS[1]) if (not v) then redis.call('SET',KEYS[1],'@promise','EX',ARGV[1]) end return v" ;
+                        client.eval([script,1,cacheID+key,config.asyncTimeOut],handleRedisResponse) ;
                     }
 
                     function handleRedisResponse(err,reply){
