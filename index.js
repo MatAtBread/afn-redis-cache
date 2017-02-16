@@ -66,6 +66,7 @@ module.exports = function(config){
             else cacheID = "" ;
             var self ;
             return self = {
+                name:typeof config.redis === 'string'? config.redis : JSON.stringify(config.redis),
                 get:async function(key) {
                     var delay = 25, total = 0 ;
                     function waiting(){
