@@ -131,6 +131,9 @@ module.exports = function(config){
                         async return true ;
                     }) ;
                 },
+                expireKeys:async function(now){
+                    // REDIS expires keys automagically
+                },
                 keys:async function() {
                     client.keys(cacheID+":*",function(err,reply){
                         if (err)
