@@ -5,6 +5,10 @@
 
 var redis = require('redis') ;
 
+function redisSafePattern(s) {
+    return s.replace(/([.?*\[\]])/g,"\\$1")
+}
+
 module.exports = function(config){
     var inProgress = "@promise" ;
     
@@ -134,8 +138,18 @@ module.exports = function(config){
                 expireKeys:async function(now){
                     // REDIS expires keys automagically
                 },
+                clear:async function(){
+                    client.keys(redisSafePattern(cacheID)+"*",function(err,reply){
+                        if (err)
+                            async return ;
+                        
+                        client.del(reply,function(err,reply){
+                            async return ;
+                        }) ;
+                    }) ;
+                },
                 keys:async function() {
-                    client.keys(cacheID+":*",function(err,reply){
+                    client.keys(redisSafePattern(cacheID)+"*",function(err,reply){
                         if (err)
                             async return [] ;
                         try {
