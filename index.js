@@ -125,7 +125,7 @@ module.exports = function(config){
                         serialized = JSON.stringify(data) ;
                     }
                     
-                    client.setex(cacheID+key, ttl?ttl/1000:config.defaultTTL, serialized, function(err,reply){
+                    client.setex(cacheID+key, ttl?(ttl/1000)|0:config.defaultTTL, serialized, function(err,reply){
                         async return self ;
                     }) ;
                 },

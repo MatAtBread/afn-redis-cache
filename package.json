@@ -1,6 +1,6 @@
 {
   "name": "afn-redis-cache",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "A shared network cache for https://github.com/MatAtBread/afn to speed up clustered API servers",
   "main": "index.js",
   "scripts": {
@@ -24,7 +24,7 @@
   },
   "homepage": "https://github.com/MatAtBread/afn-redis-cache#readme",
   "dependencies": {
-    "nodent": "^3.1.3",
+    "nodent": "^3.2.6",
     "redis": "^2.6.5"
   }
 }
