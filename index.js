@@ -78,7 +78,7 @@ module.exports = function(config){
                         // of if it doesn't exist sets it to '@promise' and returns null (so the client in this
                         // case will think it missed and populate it). 
                         var script = /* params: keyName=wait-time (in seconds) */
-                        "local v = redis.call('GET',KEYS[1]) if (not v) then redis.call('SET',KEYS[1],'@promise','EX',ARGV[1]) end return v" ;
+                        "local v = redis.call('GET',KEYS[1]) if (not v) then redis.call('SET',KEYS[1],'"+inProgress+"','EX',ARGV[1]) end return v" ;
                         client.eval([script,1,cacheID+key,config.asyncTimeOut],handleRedisResponse) ;
                     }
 
@@ -93,6 +93,10 @@ module.exports = function(config){
                         }
                         
                         try {
+                            if (reply === "@null")
+                              async return null ;
+                            if (reply === "@undefined")
+                              async return undefined ;
                             if (reply === inProgress) {
                                 // We're still in progress
                                 delay = (delay * 1.3) |0 ;
@@ -119,11 +123,14 @@ module.exports = function(config){
                     // Are we being asked to cache an unresolved promise with no data
                     var serialized ;
 
-                    if (!('data' in data)) {
+                    if (data === null)
+                      serialized = "@null";
+                    else if (data === undefined)
+                      serialized = "@undefined";
+                    else if (data && typeof data.then === "function")
                         serialized = inProgress ;
-                    } else {
+                    else
                         serialized = JSON.stringify(data) ;
-                    }
                     
                     client.setex(cacheID+key, ttl?(ttl/1000)|0:config.defaultTTL, serialized, function(err,reply){
                         async return self ;
