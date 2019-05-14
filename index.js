@@ -76,9 +76,15 @@ module.exports = function(config){
                     function waiting(){
                         // The script is an "atomic" get-test-set that returns the current value for a key,
                         // of if it doesn't exist sets it to '@promise' and returns null (so the client in this
-                        // case will think it missed and populate it). 
+                        // case will think it missed and populate it)
+                      
+                        // Importantly, only the FIRST execution of this returns "@new", indicating that the caller
+                        // (who will get Promise<undefined> as the resilt) should proceed to populate the cache
+                        // Subsequent callers will get an unresolved Promise back, which will resolve when the
+                        // first one sets the result, or the whole operation reaches config.asyncTimeOut
+                      
                         var script = /* params: keyName=wait-time (in seconds) */
-                        "local v = redis.call('GET',KEYS[1]) if (not v) then redis.call('SET',KEYS[1],'"+inProgress+"','EX',ARGV[1]) end return v" ;
+                        "local v = redis.call('GET',KEYS[1]) if (not v) then redis.call('SET',KEYS[1],'"+inProgress+"','EX',ARGV[1]) return '@new' end return v" ;
                         client.eval([script,1,cacheID+key,config.asyncTimeOut],handleRedisResponse) ;
                     }
 
@@ -89,14 +95,14 @@ module.exports = function(config){
                         }
                         if (reply===null) {
                             config.log("miss",key) ;
-                            async return null ;
+                            async return undefined ;
                         }
                         
                         try {
+                            if (reply === "@new")
+                              async return undefined ; // No such key - we created a new @promise in it's place
                             if (reply === "@null")
                               async return null ;
-                            if (reply === "@undefined")
-                              async return undefined ;
                             if (reply === inProgress) {
                                 // We're still in progress
                                 delay = (delay * 1.3) |0 ;
@@ -125,8 +131,8 @@ module.exports = function(config){
 
                     if (data === null)
                       serialized = "@null";
-                    else if (data === undefined)
-                      serialized = "@undefined";
+                    else if (data === undefined) // We can't store undefined, as it's used to indicate a cache miss
+                      serialized = "@null";
                     else if (data && typeof data.then === "function")
                         serialized = inProgress ;
                     else
