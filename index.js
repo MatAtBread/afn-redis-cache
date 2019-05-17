@@ -10,8 +10,6 @@ function redisSafePattern(s) {
 }
 
 module.exports = function(config){
-    var inProgress = "@promise" ;
-    
     if (!config || !config.redis) {
         throw new Error("REDIS configuration missing");
     }
@@ -84,7 +82,7 @@ module.exports = function(config){
                         // first one sets the result, or the whole operation reaches config.asyncTimeOut
                       
                         var script = /* params: keyName=wait-time (in seconds) */
-                        "local v = redis.call('GET',KEYS[1]) if (not v) then redis.call('SET',KEYS[1],'"+inProgress+"','EX',ARGV[1]) return '@new' end return v" ;
+                        "local v = redis.call('GET',KEYS[1]) if (not v) then redis.call('SET',KEYS[1],'@promise','EX',ARGV[1]) return '@new' end return v" ;
                         client.eval([script,1,cacheID+key,config.asyncTimeOut],handleRedisResponse) ;
                     }
 
@@ -100,10 +98,10 @@ module.exports = function(config){
                         
                         try {
                             if (reply === "@new")
-                              async return undefined ; // No such key - we created a new @promise in it's place
+                              async return undefined ; // No such key - we created a new @promise in it's place so that other getters wait for it to be set
                             if (reply === "@null")
                               async return null ;
-                            if (reply === inProgress) {
+                            if (reply === "@promise") {
                                 // We're still in progress
                                 delay = (delay * 1.3) |0 ;
                                 total += delay ;
@@ -126,15 +124,15 @@ module.exports = function(config){
                     waiting() ;
                 },
                 set:async function(key,data,ttl) {
-                    // Are we being asked to cache an unresolved promise with no data
                     var serialized ;
 
+                    // Are we being asked to cache an unresolved promise with no data
                     if (data === null)
                       serialized = "@null";
                     else if (data === undefined) // We can't store undefined, as it's used to indicate a cache miss
                       serialized = "@null";
                     else if (data && typeof data.then === "function")
-                        serialized = inProgress ;
+                        serialized = "@promise" ;
                     else
                         serialized = JSON.stringify(data) ;
                     
