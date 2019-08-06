@@ -114,8 +114,9 @@ module.exports = function(config){
                         setTimeout(waiting, delay) ;
                       }
                     } else {
-                      options.log("reply",key) ;
-                      async return JSON.parse(reply) ;
+                      var parsed = JSON.parse(reply);
+                      options.log("reply",key,parsed) ;
+                      async return parsed ;
                     }
                   } catch (ex) {
                     options.log("exception",key,ex) ;
