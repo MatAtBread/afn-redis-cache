@@ -28,6 +28,6 @@
     "redis": "^2.6.5"
   },
   "peerDependencies": {
-    "afn": "^2.0.3"
+    "afn": "^2.0.7"
   }
 }
