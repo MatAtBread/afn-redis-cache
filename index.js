@@ -69,7 +69,8 @@ module.exports = function(config){
       var self ;
       return self = {
           name:typeof config.redis === 'string'? config.redis : JSON.stringify(config.redis),
-              get:async function(key) {
+              get:async function(key, options) {
+                options = Object.assign({},config,options);
                 var delay = 25, total = 0 ;
                 function waiting(){
                   // The script is an "atomic" get-test-set that returns the current value for a key,
@@ -79,20 +80,20 @@ module.exports = function(config){
                   // Importantly, only the FIRST execution of this returns "@new", indicating that the caller
                   // (who will get Promise<undefined> as the resilt) should proceed to populate the cache
                   // Subsequent callers will get an unresolved Promise back, which will resolve when the
-                  // first one sets the result, or the whole operation reaches config.asyncTimeOut
+                  // first one sets the result, or the whole operation reaches options.asyncTimeOut
 
                   var script = /* params: keyName=wait-time (in seconds) */
                     "local v = redis.call('GET',KEYS[1]) if (not v) then redis.call('SET',KEYS[1],'@promise','EX',ARGV[1]) return '@new' end return v" ;
-                  client.eval([script,1,cacheID+key,config.asyncTimeOut],handleRedisResponse) ;
+                  client.eval([script,1,cacheID+key,options.asyncTimeOut],handleRedisResponse) ;
                 }
 
                 function handleRedisResponse(err,reply){
                   if (err) {
-                    config.log("error",key,err) ;
+                    options.log("error",key,err) ;
                     async return undefined ;
                   }
                   if (reply===null) {
-                    config.log("miss",key) ;
+                    options.log("miss",key) ;
                     async return undefined ;
                   }
 
@@ -106,18 +107,18 @@ module.exports = function(config){
                       delay = (delay * 1.3) |0 ;
                       total += delay ;
 
-                      if (total > config.asyncTimeOut * 1000) {
-                        config.log("timeout",key) ;
+                      if (total > options.asyncTimeOut * 1000) {
+                        options.log("timeout",key) ;
                         async return undefined ;
                       } else {
                         setTimeout(waiting, delay) ;
                       }
                     } else {
-                      config.log("reply",key) ;
+                      options.log("reply",key) ;
                       async return JSON.parse(reply) ;
                     }
                   } catch (ex) {
-                    config.log("exception",key,ex) ;
+                    options.log("exception",key,ex) ;
                     async return undefined ;
                   }
                 }
