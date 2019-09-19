@@ -32,7 +32,7 @@ module.exports = function(config){
   }
   // On failure, fail the command(s) instantly and try to re-establish a connection in 10 seconds
   redisOpts.retry_strategy = redisOpts.retry_strategy || function (options) { 
-    config.log("afn-redis-cache retry",options) ;
+    config.log("afn-redis-cache retry","",options) ;
     setTimeout(connectRedis,10000) ;
     return undefined ;
   } ;
@@ -45,7 +45,7 @@ module.exports = function(config){
     client.on('error',function(err){
       // redisOpts.retry_strategy()
       // Just eat them up - the individual calls should handle the error
-      config.log("afn-redis-cache error",err) ;
+      config.log("afn-redis-cache error","",err) ;
     }) ;
   }
 
@@ -61,6 +61,9 @@ module.exports = function(config){
   if (!('asyncTimeOut' in config))
     config.asyncTimeOut = 0 ;
 
+  if (typeof config.log !== 'function')
+    config.log = function(){};
+
   return {
     hashEncoding:'base64',
     createCache: function(cacheID) {
@@ -71,6 +74,9 @@ module.exports = function(config){
           name:typeof config.redis === 'string'? config.redis : JSON.stringify(config.redis),
               get:async function(key, options) {
                 options = Object.assign({},config,options);
+                if (typeof options.log !== 'function')
+                  options.log = function(){};
+                
                 var delay = 25, total = 0 ;
                 function waiting(){
                   // The script is an "atomic" get-test-set that returns the current value for a key,
@@ -98,13 +104,19 @@ module.exports = function(config){
                   }
 
                   try {
-                    if (reply === "@new")
+                    if (reply === "@new") {
+                      options.log("new",key) ;
                       async return undefined ; // No such key - we created a new @promise in it's place so that other getters wait for it to be set
-                    if (reply === "@null")
+                    }
+                    if (reply === "@null") {
+                      options.log("reply",key,null) ;
                       async return null ;
+                    }
                     if (reply === "@promise") {
                       // We're still in progress
                       delay = (delay * 1.3) |0 ;
+                      if (delay > 15000)
+                        delay = 15000;
                       total += delay ;
 
                       if (total > options.asyncTimeOut * 1000) {
@@ -138,7 +150,8 @@ module.exports = function(config){
                 else
                   serialized = JSON.stringify(data) ;
 
-                client.setex(cacheID+key, ttl?(ttl/1000)|0:config.defaultTTL, serialized, function(err,reply){
+                  config.log("set",key,serialized) ;
+                  client.setex(cacheID+key, ttl?(ttl/1000)|0:config.defaultTTL, serialized, function(err,reply){
                   async return self ;
                 }) ;
               },
@@ -151,6 +164,7 @@ module.exports = function(config){
                 })
               },
               'delete':async function(key) {
+                config.log("delete",key) ;
                 client.del(cacheID+key, function(err,reply){
                   if (err) async return false ;
                   async return true ;
