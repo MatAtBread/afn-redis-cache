@@ -32,7 +32,7 @@ module.exports = function(config){
   }
   // On failure, fail the command(s) instantly and try to re-establish a connection in 10 seconds
   redisOpts.retry_strategy = redisOpts.retry_strategy || function (options) { 
-    config.log("afn-redis-cache retry","",options) ;
+    config.log("redis-retry","",undefined,options) ;
     setTimeout(connectRedis,10000) ;
     return undefined ;
   } ;
@@ -45,7 +45,7 @@ module.exports = function(config){
     client.on('error',function(err){
       // redisOpts.retry_strategy()
       // Just eat them up - the individual calls should handle the error
-      config.log("afn-redis-cache error","",err) ;
+      config.log("redis-error","",undefined,err) ;
     }) ;
   }
 
@@ -57,9 +57,9 @@ module.exports = function(config){
 
   // How long the cache should wait for an async function to 
   // return (and populate the cache) before claiming to be empty
-  // (default: 0 - don't wait, different servers in a cluster will re-enter the underlying memoized function)
+  // 0 - don't wait, different servers in a cluster will re-enter the underlying memoized function)
   if (!('asyncTimeOut' in config))
-    config.asyncTimeOut = 0 ;
+    config.asyncTimeOut = config.defaultTTL ;
 
   if (typeof config.log !== 'function')
     config.log = function(){};
@@ -73,11 +73,17 @@ module.exports = function(config){
       return self = {
           name:typeof config.redis === 'string'? config.redis : JSON.stringify(config.redis),
               get:async function(key, options) {
+                var start = Date.now(), log;
                 options = Object.assign({},config,options);
                 if (typeof options.log !== 'function')
-                  options.log = function(){};
+                  log = function(){};
+                else
+                  log = function(msg,key,data){ options.log(msg,key,Date.now()-start,data) };
                 
-                var delay = 25, total = 0 ;
+                var delay = (25+Math.random() * 20)|0; 
+                var total = 0;
+                var asyncTimeOut = options.asyncTimeOut;
+
                 function waiting(){
                   // The script is an "atomic" get-test-set that returns the current value for a key,
                   // of if it doesn't exist sets it to '@promise' and returns null (so the client in this
@@ -90,48 +96,80 @@ module.exports = function(config){
 
                   var script = /* params: keyName=wait-time (in seconds) */
                     "local v = redis.call('GET',KEYS[1]) if (not v) then redis.call('SET',KEYS[1],'@promise','EX',ARGV[1]) return '@new' end return v" ;
-                  client.eval([script,1,cacheID+key,options.asyncTimeOut],handleRedisResponse) ;
+                  client.eval([script,1,cacheID+key,asyncTimeOut],handleRedisResponse) ;
                 }
 
                 function handleRedisResponse(err,reply){
                   if (err) {
-                    options.log("error",key,err) ;
+                    log("error",key,err) ;
                     async return undefined ;
                   }
+
                   if (reply===null) {
-                    options.log("miss",key) ;
+                    // This is really an error as the script should never return null
+                    log("miss",key) ; 
                     async return undefined ;
                   }
 
                   try {
                     if (reply === "@new") {
-                      options.log("new",key) ;
+                      log("new",key) ;
                       async return undefined ; // No such key - we created a new @promise in it's place so that other getters wait for it to be set
                     }
                     if (reply === "@null") {
-                      options.log("reply",key,null) ;
+                      log("reply",key,null) ;
                       async return null ;
                     }
                     if (reply === "@promise") {
+                      if (total === 0)
+                        log("wait",key,undefined) ;
+
                       // We're still in progress
-                      delay = (delay * 1.3) |0 ;
-                      if (delay > 15000)
-                        delay = 15000;
+                      if (delay > 5000)
+                        delay = 5000 + (Math.random()*1000)|0;
+                      else
+                        delay = 1 + (delay * 1.1) |0 ;
                       total += delay ;
 
-                      if (total > options.asyncTimeOut * 1000) {
-                        options.log("timeout",key) ;
-                        async return undefined ;
+                      if (asyncTimeOut && total > asyncTimeOut * 1000) {
+                        // We should have had a response by now. 
+                        // If the key has expired, extend the ttl
+                        // but answer the client in the -ve. This means
+                        // we should take charge of the lock, but
+                        // any other clients will keep waiting
+                        var script = /* params: keyName=wait-time (in seconds) */
+                          "local v = redis.call('TTL',KEYS[1]) if (v <= 0) then redis.call('EXPIRE',KEYS[1],ARGV[1]) return 0 end return v" ;
+                        client.eval([script,1,cacheID+key,asyncTimeOut], function(err,ttlset){
+                          if (err) {
+                            log("nottl",key,err) ;
+                            async return undefined ;
+                          } else {
+                            if (ttlset === 0) {
+                              // We extended the TTL, so return `undefined`
+                              log("timeout",key, total) ;
+                              async return undefined ;
+                            } else {
+                              // The data exists with a TTL, so keep waiting
+                              log("delayed",key, delay) ;
+                              asyncTimeOut = ttlset;
+                              delay = 1 + (delay/2.6) | 0 ;
+                              total = 0 ;
+                              //log("poll",key,delay) ;
+                              setTimeout(waiting, delay) ;
+                            }
+                          }
+                        })
                       } else {
+                        //log("poll",key,delay) ;
                         setTimeout(waiting, delay) ;
                       }
                     } else {
                       var parsed = JSON.parse(reply);
-                      options.log("reply",key,parsed) ;
+                      log("reply",key,parsed) ;
                       async return parsed ;
                     }
                   } catch (ex) {
-                    options.log("exception",key,ex) ;
+                    log("exception",key,ex) ;
                     async return undefined ;
                   }
                 }
@@ -150,7 +188,7 @@ module.exports = function(config){
                 else
                   serialized = JSON.stringify(data) ;
 
-                  config.log("set",key,serialized) ;
+                  config.log("set",key,undefined,serialized) ;
                   client.setex(cacheID+key, ttl?(ttl/1000)|0:config.defaultTTL, serialized, function(err,reply){
                   async return self ;
                 }) ;
