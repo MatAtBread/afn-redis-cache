@@ -112,15 +112,15 @@ module.exports = function(config){
             }
 
             try {
-              if (reply === "@new") {
+              if (reply.slice(0,4) === "@new") {
                 log("new",key) ;
                 async return undefined ; // No such key - we created a new @promise in it's place so that other getters wait for it to be set
               }
-              if (reply === "@null") {
+              if (reply.slice(0,5) === "@null") {
                 log("reply",key,null) ;
                 async return null ;
               }
-              if (reply === "@promise") {
+              if (reply.slice(0,8) === "@promise") {
                 if (total === 0)
                   log("wait",key,undefined) ;
 
@@ -200,6 +200,42 @@ module.exports = function(config){
             else
               async return reply !== 'none';
           })
+        },
+        peek: async function(key) {
+            client.get(cacheID + key,function(err,reply){
+              if (err) 
+                async throw err;
+
+              // No key
+              if (reply === null)
+                async return undefined;
+
+              // Cached data
+              if (reply[0] !== "@")
+                async return JSON.parse(reply);
+ 
+              // Either @null or @promise
+              client.ttl(cacheID + key,function(err,ttl){
+              if (err) 
+                async throw err;
+              if (+ttl < 0 || isNaN(+ttl))
+                async return undefined;
+              
+                if (reply.slice(0,4) === "@null") {
+                  async return {
+                    expires: Date.now() + ttl * 1000,
+                    value: null
+                  }
+                }
+                if (reply.slice(0,8) === "@promise") {
+                  async return {
+                    expires: Date.now() + ttl * 1000
+                  }
+                }
+
+                async throw new Error("Inavlid cache marker");
+              });
+          });
         },
         'delete':async function(key) {
           config.log("delete",key) ;
