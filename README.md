@@ -37,12 +37,3 @@ Use the cache
 	await cache.delete:(key);
 	await cache.keys();
 	
-## A note about async/await
-
-async functions are functions that return Promises. afn-redis-cache is written using async/await. On installation, it uses [nodent](https://github.com/MatAtBread/nodent) to build an ES5 file that you can require into non-ES7 environments:
-
-	var configureCache = require('afn-redis-cache/dist') ;
-	
-You will need to have a global `Promise` defined on your run-time environment.
-
-With nodent v2, you will require the nodent runtime (and so should `require('nodent')` somewhere in your app to load it, or just `Function.prototype.$asyncbind = require('nodent/runtime').$asyncbind`). With nodent v3 the build process generates pure ES5 with no runtime dependency.

@@ -1,5 +1,2 @@
 /node_modules/
-/dist/*.js
-
 /.project
-/package-lock.json

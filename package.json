@@ -1,11 +1,13 @@
 {
   "name": "afn-redis-cache",
-  "version": "2.1.1",
+  "version": "3.0.0",
+  "engines": {
+    "node": ">=10.0.0"
+  },
   "description": "A shared network cache for https://github.com/MatAtBread/afn to speed up clustered API servers",
   "main": "index.js",
   "scripts": {
-    "test": "echo 'Install afn and test afn-redis-cache via npm test'",
-    "install": "nodentjs --dest=dist/ --noruntime *.js"
+    "test": "echo 'Install afn and test afn-redis-cache via npm test'"
   },
   "repository": {
     "type": "git",
@@ -24,7 +26,6 @@
   },
   "homepage": "https://github.com/MatAtBread/afn-redis-cache#readme",
   "dependencies": {
-    "nodent": "^3.2.11",
     "redis": "^2.6.5"
   },
   "peerDependencies": {
