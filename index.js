@@ -150,7 +150,7 @@ module.exports = function (config) {
         },
         has: function (key) {
           return new Promise(function ($return, $error) {
-            client.type(key, function (err, reply) {
+            client.type(cacheID + key, function (err, reply) {
               if (err)
                 return $error(err);
               else
